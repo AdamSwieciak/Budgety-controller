@@ -4,6 +4,17 @@ var budgetController = (function() {
     this.id = id;
     this.description = description;
     this.value = value;
+    this.percentage = -1;
+  };
+  Expense.prototype.calcPercentage = function(totalIncome) {
+    if (totalIncome > 0) {
+      this.percentage = Math.round((this.value / totalIncome) * 100);
+    } else {
+      this.percentage = -1;
+    }
+  };
+  Expense.prototype.getPercentages = function() {
+    return this.percentage;
   };
   var Income = function(id, description, value) {
     this.id = id;
@@ -13,10 +24,10 @@ var budgetController = (function() {
 
   var calculateTotal = function(type) {
     var sum = 0;
-    data.allItems[type].forEach(function(current) {
-      sum = sum + current.value;
-      data.totals[type] = sum;
+    data.allItems[type].forEach(function(cur) {
+      sum += cur.value;
     });
+    data.totals[type] = sum;
   };
   var data = {
     allItems: {
@@ -51,20 +62,20 @@ var budgetController = (function() {
       data.allItems[type].push(newItem);
       return newItem;
     },
-    deliteItem: function (type, id) {
+    deliteItem: function(type, id) {
       var ids, index;
-// id =3
-// data.allItems[type][]
+      // id =3
+      // data.allItems[type][]
 
-var ids = data.allItems[type].map(function (current) {
-return current;
-  });
-   index = ids.indexOf(id);
+      ids = data.allItems[type].map(function(current) {
+        return current.id;
+      });
+      index = ids.indexOf(id);
 
-   if(index!== -1){
-     data.allItems[type].splice(index, 1);
-   }
-      },
+      if (index !== -1) {
+        data.allItems[type].splice(index, 1);
+      }
+    },
     calculateBudget: function() {
       // CALCULATE TOTAL INCOME AND EXPENSE
       calculateTotal("exp");
@@ -74,8 +85,22 @@ return current;
       // CALCULATE THE PERCENTAGE OF INCOME THAT WE SPEND
       if (data.totals.inc > 0) {
         data.percentage = Math.round((data.totals.exp / data.totals.inc) * 100);
-      } else data.percentage = -1;
+      } else {
+        data.percentage = -1;
+      }
     },
+    calculatePercentage: function() {
+      data.allItems.exp.forEach(function(cur) {
+        cur.calcPercentage(data.totals.inc);
+      });
+    },
+    getPercentages: function() {
+      var allPerc = data.allItems.exp.map(function(cur) {
+        return cur.getPercentages();
+      });
+      return allPerc;
+    },
+
     getBudget: function() {
       return {
         budget: data.budget,
@@ -137,9 +162,9 @@ var UIController = (function() {
       document.querySelector(element).insertAdjacentHTML("beforeend", newHTML);
     },
     deleteListItem: function(selectorID) {
-    var el =  document.getElementById(selectorID);
-el.parentNode.removeChild(el);  // DELETE CHILD CLASNAME LITTLE WIRD 
-      },
+      var el = document.getElementById(selectorID);
+      el.parentNode.removeChild(el); // DELETE CHILD CLASNAME LITTLE WIRD
+    },
     clearFields: function() {
       var fields, fieldsArr;
       fields = document.querySelectorAll(
@@ -196,6 +221,20 @@ var controler = (function(budgetCtrl, UICtrl) {
     // 3 display the budget on UI
     UICtrl.displayBudget(budget);
   };
+
+  // UPDATE PERCENTAGES ON THE EVERY ELEMENT IN THE LIST
+
+  var updatePercentage = function() {
+    // calculate percentage
+    budgetCtrl.calculatePercentage();
+    // read percentages from the budget controller
+    var percentages = budgetCtrl.getPercentages();
+    //update the ui with the new percentages
+    console.log(percentages);
+  };
+
+  // ADD ITEMS ON THE LIST
+
   var ctrlAddItem = function() {
     var input, newItem;
 
@@ -212,8 +251,12 @@ var controler = (function(budgetCtrl, UICtrl) {
 
       // CALCULATE AND UPDATE BUDGET
       UpdateBudget();
+      //calculate and update percentage
+      updatePercentage();
     }
   };
+
+  // DELITE ITEMS ON THE LIST
 
   var ctrlDeleteItem = function(event) {
     var itemID, splitID, type, ID;
@@ -222,16 +265,17 @@ var controler = (function(budgetCtrl, UICtrl) {
       // inc-1
       splitID = itemID.split("-"); // get part od string for two without - on array
       type = splitID[0];
-      ID = parseInt(splitID[1]);
-
+      ID = parseFloat(splitID[1]);
       //delite the item from the data structure
-budgetCtrl.deliteItem(type, ID);
+      budgetCtrl.deliteItem(type, ID);
       // delite the item from the UI
-UICtrl.deleteListItem(itemID);
+      UICtrl.deleteListItem(itemID);
       //update and show the nwe budget
       UpdateBudget();
     }
   };
+
+  // STARTED FUNCTION
   return {
     init: function() {
       console.log("started");
